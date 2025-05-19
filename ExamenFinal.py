@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
-tokenGenAI = os.getenv("api_key_genai")
-api_key = os.getenv("api_key_anthropic")
+tokenGenAI = st.secrets["API_KEY_GENAI"]
+api_key = st.secrets["API_KEY_ANTHROPIC"]
 
 # Configuración API Gemini
 tokenGenAI = tokenGenAI
