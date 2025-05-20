@@ -253,58 +253,65 @@ if symbol:
                 # === SECCIÓN 6: Gráfica Comparativa con S&P 500 ===
                 st.markdown(f"<div class='section-header'>📊 Comparativa con S&P 500</div>", unsafe_allow_html=True)
                 st.markdown(f"""
-                    A continuación, se muestra una gráfica comparativa entre el precio de **{symbol.upper()}** y el índice S&P 500.
-                    Esto te permitirá ver cómo se ha comportado la acción en relación con el mercado en general.
+                    A continuación, se muestra una gráfica del **rendimiento acumulado** de **{symbol.upper()}** y el índice S&P 500 (SPY),
+                    partiendo desde 0. Esto representa el cambio absoluto en el precio desde el inicio del período.
                 """)
 
                 # Obtener datos históricos del S&P 500 (SPY)
-                
-
                 spy = yf.Ticker("SPY")
                 spy_hist = spy.history(start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
 
                 if not spy_hist.empty:
-                    # Normalizar precios
-                    df_action = hist[["Close"]].reset_index().rename(columns={"Close": f"{symbol.upper()}"}).set_index("Date")
-                    df_spy = spy_hist[["Close"]].reset_index().rename(columns={"Close": "S&P 500 (SPY)"}).set_index("Date")
-                    df_comparative = df_action.join(df_spy, how="inner")
+                    # Crear DataFrames
+                    df_action = hist[["Close"]].reset_index().rename(columns={"Close": f"{symbol.upper()}"})
+                    df_spy = spy_hist[["Close"]].reset_index().rename(columns={"Close": "S&P 500 (SPY)"})
 
-                    # Preparar DataFrame para Altair
-                    df_comparative_reset = df_comparative.reset_index()
-                    df_melted = df_comparative_reset.melt(id_vars=["Date"], var_name="variable", value_name="value")
+                    # Unir por fecha
+                    df_comparative = pd.merge(df_action, df_spy, on="Date", how="inner")
 
-                    # Crear gráfico comparativo 
+                    # Calcular cambio de precios desde el inicio (base 0)
+                    df_comparative[f"{symbol.upper()}"] -= df_comparative[f"{symbol.upper()}"].iloc[0]
+                    df_comparative["S&P 500 (SPY)"] -= df_comparative["S&P 500 (SPY)"].iloc[0]
+
+                    # Formato largo para Altair
+                    df_melted = df_comparative.melt(id_vars=["Date"], var_name="Instrumento", value_name="Cambio en Precio")
+
+                    # Gráfico
                     chart_comparative = alt.Chart(df_melted).mark_line(
                         strokeWidth=2.5,
                         opacity=0.85
                     ).encode(
                         x=alt.X('Date:T', title='Fecha'),
-                        y=alt.Y('value:Q', title='Precio de Cierre'),
-                        color=alt.Color('variable:N', title='Instrumento'),
+                        y=alt.Y('Cambio en Precio:Q', title='Cambio en Precio desde el Inicio (USD)'),
+                        color=alt.Color('Instrumento:N', title='Instrumento'),
                         tooltip=[
                             alt.Tooltip('Date:T', title='Fecha'),
-                            alt.Tooltip('variable:N', title='Instrumento'),
-                            alt.Tooltip('value:Q', title='Precio')
+                            alt.Tooltip('Instrumento:N', title='Instrumento'),
+                            alt.Tooltip('Cambio en Precio:Q', title='Cambio ($)')
                         ]
                     ).properties(
                         title=alt.TitleParams(
-                            text=f"Comparativa de Precios: {symbol.upper()} vs S&P 500",
+                            text=f"Cambio Acumulado de Precio: {symbol.upper()} vs S&P 500",
                             fontSize=20,
-                            anchor="middle"  # Centrar el título
+                            anchor="middle"
                         ),
                         height=400,
                         width=700
                     ).interactive()
 
-                    # Mostrar gráfico en Streamlit
+                    # Mostrar gráfico
                     st.altair_chart(chart_comparative, use_container_width=True)
 
 
-                    st.markdown(f"""
-                        **Explicación:**
-                        - La gráfica muestra la evolución del precio de **{symbol.upper()}** y el índice S&P 500 (ETF SPY) en el mismo periodo.
-                        - Al comparar ambos, puedes observar si la acción ha tenido un comportamiento superior o inferior al del mercado en general.
-                    """)
+                    st.markdown("""
+                    <div style='text-align: justify; font-size: 16px;'>
+                        Esta gráfica compara el <strong>cambio absoluto en el precio</strong> de <strong>{}</strong> y el índice <strong>S&amp;P 500</strong> a lo largo del tiempo.
+                        <br><br>
+                        Ambas líneas parten desde <strong>0</strong>, lo que significa que se muestra cuánto ha subido o bajado cada instrumento respecto a su precio inicial en el período analizado.
+                        <br><br>
+                        Es una forma útil de visualizar el <strong>rendimiento acumulado en dólares</strong> y comparar el desempeño real de ambos activos de manera directa.
+                    </div>
+                    """.format(symbol.upper()), unsafe_allow_html=True)
                 else:
                     st.warning("No se encontraron datos históricos del índice S&P 500 para graficar.")
 
